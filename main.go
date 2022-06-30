@@ -3,6 +3,8 @@ package main
 import (
 	"booking-app/helper"
 	"fmt"
+	"sync"
+	"time"
 )
 
 var conferenceName string = "GoConf"
@@ -19,39 +21,42 @@ type UserData struct {
 	numberOfTickets uint
 }
 
+var wg = sync.WaitGroup{}
+
 func main() {
 	greetUsers()
 
-	for remainingTickets > 0 && len(bookings) < 50 {
-		firstName, lastName, email, userTickets := getUserInput()
+	firstName, lastName, email, userTickets := getUserInput()
+	isValidName, isValidEmail, isValidTicketNumber := helper.ValidateUserInput(firstName, lastName, email, userTickets, remainingTickets)
 
-		isValidName, isValidEmail, isValidTicketNumber := helper.ValidateUserInput(firstName, lastName, email, userTickets, remainingTickets)
+	if isValidName && isValidEmail && isValidTicketNumber {
+		bookTicket(userTickets, firstName, lastName, email)
 
-		if isValidName && isValidEmail && isValidTicketNumber {
-			bookTicket(userTickets, firstName, lastName, email)
+		wg.Add(1)
+		go sendTicket(userTickets, firstName, lastName, email)
 
-			firstNames := getFirstNames()
-			fmt.Printf("The first names of bookings are: %v\n", firstNames)
+		firstNames := getFirstNames()
+		fmt.Printf("The first names of bookings are: %v\n", firstNames)
 
-			noTicketsRemaining := remainingTickets == 0
-			if noTicketsRemaining {
-				fmt.Println("Our conference is fully booked. Come back next year!")
-				break
-			}
-		} else {
-			if !isValidName {
-				fmt.Println("First name or last name is too short. Please try again.")
-			}
+		noTicketsRemaining := remainingTickets == 0
+		if noTicketsRemaining {
+			fmt.Println("Our conference is fully booked. Come back next year!")
+			// break
+		}
+	} else {
+		if !isValidName {
+			fmt.Println("First name or last name is too short. Please try again.")
+		}
 
-			if !isValidEmail {
-				fmt.Println("Email address must contain @ symbol. Please try again.")
-			}
+		if !isValidEmail {
+			fmt.Println("Email address must contain @ symbol. Please try again.")
+		}
 
-			if !isValidTicketNumber {
-				fmt.Println("Number of tickets entered is invalid. Please try again.")
-			}
+		if !isValidTicketNumber {
+			fmt.Println("Number of tickets entered is invalid. Please try again.")
 		}
 	}
+	wg.Wait()
 }
 
 func greetUsers() {
@@ -105,4 +110,13 @@ func bookTicket(userTickets uint, firstName string, lastName string, email strin
 
 	fmt.Printf("Thank you %v %v for booking %v tickets. You will receive a confirmation email at %v.\n", firstName, lastName, userTickets, email)
 	fmt.Printf("%v tickets remaining for %v\n", remainingTickets, conferenceName)
+}
+
+func sendTicket(userTickets uint, firstName string, lastName string, email string) {
+	time.Sleep(10 * time.Second)
+	var ticket = fmt.Sprintf("%v tickets for %v %v", userTickets, firstName, lastName)
+	fmt.Println("################")
+	fmt.Printf("Sending ticket:\n%v \nto email address %v\n", ticket, email)
+	fmt.Println("################")
+	wg.Done()
 }
